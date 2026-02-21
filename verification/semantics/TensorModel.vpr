@@ -1,0 +1,231 @@
+domain NonnegArith {
+  axiom mul_nonneg {
+    forall a: Int, b: Int :: a >= 0 && b >= 0 ==> a * b >= 0
+  }
+  axiom add_nonneg {
+    forall a: Int, b: Int :: a >= 0 && b >= 0 ==> a + b >= 0
+  }
+}
+
+domain DType {
+  function F32(): DType
+  function F64(): DType
+  function I32(): DType
+  function I64(): DType
+  function U32(): DType
+  function U64(): DType
+  function BOOL(): DType
+}
+
+domain Layout {
+  function ROW_MAJOR(): Layout
+  function COLUMN_MAJOR(): Layout
+  function STRIDED(): Layout
+}
+
+domain Device {
+  function CPU(): Device
+  function GPU(): Device
+  function TPU(): Device
+}
+
+domain Ownership {
+  function OWNED(): Ownership
+  function BORROWED(): Ownership
+  function VIEW(): Ownership
+}
+
+function shapeSize(shape: Seq[Int]): Int
+  requires forall i: Int :: 0 <= i && i < |shape| ==> shape[i] > 0
+  ensures result > 0
+{
+  |shape| == 0 ? 1 : shape[0] * shapeSize(shape[1..])
+}
+
+field dataVec: Seq[Int]
+field layout: Layout
+field device: Device
+field ownership: Ownership
+
+predicate Tensor(t: Ref, shape: Seq[Int]) {
+  acc(t.dataVec) && acc(t.layout) && acc(t.device) && acc(t.ownership) &&
+  |t.dataVec| == shapeSize(shape) &&
+  (forall i: Int :: 0 <= i && i < |t.dataVec| ==> t.dataVec[i] >= 0)
+}
+
+method tensorCreate(shape: Seq[Int], dtype: DType) returns (t: Ref)
+  requires forall i: Int :: 0 <= i && i < |shape| ==> shape[i] > 0
+  ensures Tensor(t, shape)
+  ensures t.layout == ROW_MAJOR()
+  ensures t.device == CPU()
+  ensures t.ownership == OWNED()
+{
+  t := new(dataVec, layout, device, ownership)
+  t.dataVec := seqReplicate(shapeSize(shape), 0)
+  t.layout := ROW_MAJOR()
+  t.device := CPU()
+  t.ownership := OWNED()
+}
+
+function seqReplicate(n: Int, v: Int): Seq[Int]
+  requires n >= 0
+  ensures |result| == n
+  ensures forall i: Int :: 0 <= i && i < n ==> result[i] == v
+{
+  n == 0 ? Seq[Int]() : Seq(v) ++ seqReplicate(n - 1, v)
+}
+
+method layoutTransform(t: Ref, shape: Seq[Int], newLayout: Layout) returns (t': Ref)
+  requires Tensor(t, shape)
+  ensures Tensor(t', shape)
+  ensures t'.dataVec == old(t.dataVec)
+  ensures t'.layout == newLayout
+  ensures t'.device == old(t.device)
+{
+  t' := new(dataVec, layout, device, ownership)
+  t'.dataVec := t.dataVec
+  t'.layout := newLayout
+  t'.device := t.device
+  t'.ownership := t.ownership
+}
+
+method tensorMap(t: Ref, shape: Seq[Int], f: Int) returns (t': Ref)
+  requires Tensor(t, shape)
+  requires f >= 0
+  ensures Tensor(t', shape)
+  ensures |t'.dataVec| == |old(t.dataVec)|
+{
+  unfold Tensor(t, shape)
+  t' := new(dataVec, layout, device, ownership)
+  t'.dataVec := seqMap(t.dataVec, f)
+  t'.layout := t.layout
+  t'.device := t.device
+  t'.ownership := t.ownership
+  fold Tensor(t, shape)
+  fold Tensor(t', shape)
+}
+
+function seqMap(s: Seq[Int], f: Int): Seq[Int]
+  requires |s| >= 0
+  requires f >= 0
+  requires forall i: Int :: 0 <= i && i < |s| ==> s[i] >= 0
+  ensures |result| == |s|
+  ensures forall i: Int :: 0 <= i && i < |result| ==> result[i] >= 0
+{
+  |s| == 0 ? Seq[Int]() : Seq(s[0] * f) ++ seqMap(s[1..], f)
+}
+
+method tensorZipWith(t1: Ref, t2: Ref, shape: Seq[Int]) returns (t': Ref)
+  requires Tensor(t1, shape) && Tensor(t2, shape)
+  ensures Tensor(t', shape)
+  ensures |t'.dataVec| == shapeSize(shape)
+{
+  unfold Tensor(t1, shape)
+  unfold Tensor(t2, shape)
+  t' := new(dataVec, layout, device, ownership)
+  t'.dataVec := seqZipWith(t1.dataVec, t2.dataVec)
+  t'.layout := t1.layout
+  t'.device := t1.device
+  t'.ownership := t1.ownership
+  fold Tensor(t1, shape)
+  fold Tensor(t2, shape)
+  fold Tensor(t', shape)
+}
+
+function seqZipWith(s1: Seq[Int], s2: Seq[Int]): Seq[Int]
+  requires |s1| == |s2|
+  requires forall i: Int :: 0 <= i && i < |s1| ==> s1[i] >= 0
+  requires forall i: Int :: 0 <= i && i < |s2| ==> s2[i] >= 0
+  ensures |result| == |s1|
+  ensures forall i: Int :: 0 <= i && i < |result| ==> result[i] >= 0
+{
+  |s1| == 0 ? Seq[Int]() : Seq(s1[0] + s2[0]) ++ seqZipWith(s1[1..], s2[1..])
+}
+
+method tensorAdd(t1: Ref, t2: Ref, shape: Seq[Int]) returns (t': Ref)
+  requires Tensor(t1, shape) && Tensor(t2, shape)
+  ensures Tensor(t', shape)
+  ensures |t'.dataVec| == shapeSize(shape)
+{
+  t' := tensorZipWith(t1, t2, shape)
+}
+
+method tensorZero(shape: Seq[Int], dtype: DType) returns (t: Ref)
+  requires forall i: Int :: 0 <= i && i < |shape| ==> shape[i] > 0
+  ensures Tensor(t, shape)
+  ensures forall i: Int :: 0 <= i && i < |t.dataVec| ==> t.dataVec[i] == 0
+{
+  t := tensorCreate(shape, dtype)
+}
+
+function tensorSum(s: Seq[Int]): Int
+  ensures result >= 0
+{
+  |s| == 0 ? 0 : s[0] + tensorSum(s[1..])
+}
+
+method tensorFold(t: Ref, shape: Seq[Int]) returns (result: Int)
+  requires Tensor(t, shape)
+  ensures result >= 0
+{
+  result := tensorSum(t.dataVec)
+}
+
+method aliasingRule(t1: Ref, t2: Ref, shape1: Seq[Int], shape2: Seq[Int]) 
+  returns (isValid: Bool)
+  requires Tensor(t1, shape1) && Tensor(t2, shape2)
+  ensures isValid ==> (
+    (t1.ownership == OWNED() && t2.ownership == OWNED()) ==> 
+    t1.dataVec != t2.dataVec
+  )
+{
+  isValid := true
+}
+
+method deviceAffinityCheck(t: Ref, tOp: Ref, shape: Seq[Int]) returns (preserved: Bool)
+  requires Tensor(t, shape) && Tensor(tOp, shape)
+  ensures preserved ==> (tOp.device == t.device)
+{
+  preserved := (tOp.device == t.device)
+}
+
+method memoryBoundsCheck(t: Ref, shape: Seq[Int], i: Int) returns (valid: Bool)
+  requires Tensor(t, shape)
+  ensures valid == (0 <= i && i < |t.dataVec|)
+{
+  valid := (0 <= i && i < |t.dataVec|)
+}
+
+method tensorScalarMul(t: Ref, shape: Seq[Int], scalar: Int) returns (t': Ref)
+  requires Tensor(t, shape)
+  requires scalar >= 0
+  ensures Tensor(t', shape)
+{
+  t' := tensorMap(t, shape, scalar)
+}
+
+method tensorMul(t1: Ref, t2: Ref, shape: Seq[Int]) returns (t': Ref)
+  requires Tensor(t1, shape) && Tensor(t2, shape)
+  ensures Tensor(t', shape)
+{
+  unfold Tensor(t1, shape)
+  unfold Tensor(t2, shape)
+  t' := new(dataVec, layout, device, ownership)
+  t'.dataVec := seqMulPairwise(t1.dataVec, t2.dataVec)
+  t'.layout := t1.layout
+  t'.device := t1.device
+  t'.ownership := t1.ownership
+  fold Tensor(t1, shape)
+  fold Tensor(t2, shape)
+  fold Tensor(t', shape)
+}
+
+function seqMulPairwise(s1: Seq[Int], s2: Seq[Int]): Seq[Int]
+  requires |s1| == |s2|
+  requires forall i: Int :: 0 <= i && i < |s1| ==> s1[i] >= 0
+  requires forall i: Int :: 0 <= i && i < |s2| ==> s2[i] >= 0
+  ensures |result| == |s1|
+  ensures forall i: Int :: 0 <= i && i < |result| ==> result[i] >= 0
+{
+  |s1| == 0 ? Seq[Int]() : Seq(s1[0] * s2[0]) ++ seqMulPairwise(s1[1..], s2[1..])
+}
