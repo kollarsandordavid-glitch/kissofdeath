@@ -1,0 +1,728 @@
+module MainSpec where
+
+default WordSize = 32
+
+type BitSize = 64
+type Float32 = Float 8 24
+type Float64 = Float 11 53
+type Word8 = [8]
+type Word16 = [16]
+type Word32 = [32]
+type Word64 = [64]
+type Index = [64]
+
+MAX_TENSOR_SIZE : [64]
+MAX_TENSOR_SIZE = 16384
+
+MAX_TOKENS_SIZE : [64]
+MAX_TOKENS_SIZE = 1024
+
+MAX_NODES_SIZE : [64]
+MAX_NODES_SIZE = 1024
+
+DEFAULT_EMBEDDING_DIM : [64]
+DEFAULT_EMBEDDING_DIM = 128
+
+MIN_EMBEDDING_DIM : [64]
+MIN_EMBEDDING_DIM = 8
+
+MAX_EMBEDDING_DIM : [64]
+MAX_EMBEDDING_DIM = 16384
+
+DEFAULT_RSF_LAYERS : [64]
+DEFAULT_RSF_LAYERS = 4
+
+MIN_RSF_LAYERS : [64]
+MIN_RSF_LAYERS = 1
+
+MAX_RSF_LAYERS : [64]
+MAX_RSF_LAYERS = 256
+
+DEFAULT_BATCH_SIZE : [64]
+DEFAULT_BATCH_SIZE = 16
+
+MIN_BATCH_SIZE : [64]
+MIN_BATCH_SIZE = 1
+
+MAX_BATCH_SIZE : [64]
+MAX_BATCH_SIZE = 4096
+
+DEFAULT_NUM_EPOCHS : [64]
+DEFAULT_NUM_EPOCHS = 10
+
+MAX_NUM_EPOCHS : [64]
+MAX_NUM_EPOCHS = 100000
+
+DEFAULT_LEARNING_RATE : Float32
+DEFAULT_LEARNING_RATE = fpFromRational rmNearestTiesToEven (1 % 1000)
+
+MIN_LEARNING_RATE : Float32
+MIN_LEARNING_RATE = fpFromRational rmNearestTiesToEven (1 % 10000000000)
+
+MAX_LEARNING_RATE : Float32
+MAX_LEARNING_RATE = fpFromRational rmNearestTiesToEven (10 % 1)
+
+DEFAULT_TRAINING_SAMPLES : [64]
+DEFAULT_TRAINING_SAMPLES = 100
+
+DEFAULT_VALIDATION_SAMPLES : [64]
+DEFAULT_VALIDATION_SAMPLES = 100
+
+MIN_SAMPLES : [64]
+MIN_SAMPLES = 1
+
+MAX_SAMPLES : [64]
+MAX_SAMPLES = 1000000
+
+DEFAULT_SAMPLE_LIMIT : [64]
+DEFAULT_SAMPLE_LIMIT = 1000000
+
+DEFAULT_GRADIENT_CLIP_NORM : Float32
+DEFAULT_GRADIENT_CLIP_NORM = fpFromRational rmNearestTiesToEven (5 % 1)
+
+DEFAULT_SEQUENCE_LENGTH : [64]
+DEFAULT_SEQUENCE_LENGTH = 64
+
+DEFAULT_TOP_K : [64]
+DEFAULT_TOP_K = 5
+
+RANKER_NGRAM_SIZE : [64]
+RANKER_NGRAM_SIZE = 10
+
+RANKER_LSH_TABLES : [64]
+RANKER_LSH_TABLES = 16
+
+RANKER_SEED : [64]
+RANKER_SEED = 42
+
+TEST_DIM : [64]
+TEST_DIM = 128
+
+TEST_LAYERS : [64]
+TEST_LAYERS = 4
+
+TEST_PARAM_SIZE : [64]
+TEST_PARAM_SIZE = 128
+
+TEST_TOKEN_COUNT : [64]
+TEST_TOKEN_COUNT = 8
+
+REPL_LINE_BUFFER_SIZE : [64]
+REPL_LINE_BUFFER_SIZE = 8192
+
+ANCHOR_MODULO : [64]
+ANCHOR_MODULO = 3
+
+TENSOR_INIT_SCALE : Float32
+TENSOR_INIT_SCALE = fpFromRational rmNearestTiesToEven (1 % 10)
+
+PARAM_UPDATE_DELTA : Float32
+PARAM_UPDATE_DELTA = fpFromRational rmNearestTiesToEven (1 % 1000)
+
+GRADIENT_SCALE : Float32
+GRADIENT_SCALE = fpFromRational rmNearestTiesToEven (1 % 100)
+
+GRADIENT_RANGE_SCALE : Float32
+GRADIENT_RANGE_SCALE = fpFromRational rmNearestTiesToEven (10 % 1)
+
+NORM_TOLERANCE : Float32
+NORM_TOLERANCE = fpFromRational rmNearestTiesToEven (1 % 10)
+
+CHANGE_THRESHOLD : Float32
+CHANGE_THRESHOLD = fpFromRational rmNearestTiesToEven (1 % 1000000)
+
+GRADIENT_THRESHOLD : Float32
+GRADIENT_THRESHOLD = fpFromRational rmNearestTiesToEven (1 % 1000000000)
+
+R_SQUARED_EPSILON : Float64
+R_SQUARED_EPSILON = fpFromRational rmNearestTiesToEven (1 % 10000000000)
+
+CONFIDENCE_Z_SCORE : Float64
+CONFIDENCE_Z_SCORE = fpFromRational rmNearestTiesToEven (196 % 100)
+
+PRNG_SEED_FORWARD : [64]
+PRNG_SEED_FORWARD = 54321
+
+PRNG_SEED_VALIDATION : [64]
+PRNG_SEED_VALIDATION = 12345
+
+PRNG_SEED_GRADIENT : [64]
+PRNG_SEED_GRADIENT = 99999
+
+PRNG_SEED_SYNTHETIC : [64]
+PRNG_SEED_SYNTHETIC = 42
+
+MAX_VALID_POSITION : [64]
+MAX_VALID_POSITION = 10000
+
+MAX_TOKEN_COUNT : [64]
+MAX_TOKEN_COUNT = 1000
+
+GRADIENT_TENSOR_SIZE : [64]
+GRADIENT_TENSOR_SIZE = 100
+
+PARSE_BASE : [8]
+PARSE_BASE = 10
+
+FILE_MAGIC_RSF : [32]
+FILE_MAGIC_RSF = 0x4a524653
+
+FILE_MAGIC_MGT : [32]
+FILE_MAGIC_MGT = 0x4a4d4754
+
+FILE_MAGIC_RANKER : [32]
+FILE_MAGIC_RANKER = 0x4a524e4b
+
+FILE_MAGIC_PROJ : [32]
+FILE_MAGIC_PROJ = 0x4a50524a
+
+FILE_VERSION : [32]
+FILE_VERSION = 1
+
+MAX_LINE_LENGTH : [64]
+MAX_LINE_LENGTH = 65536
+
+MAX_TOKEN_LENGTH : [32]
+MAX_TOKEN_LENGTH = 65536
+
+type Config = {
+    embedding_dim: [64],
+    rsf_layers: [64],
+    batch_size: [64],
+    num_epochs: [64],
+    learning_rate: Float32,
+    num_training_samples: [64],
+    num_validation_samples: [64],
+    sample_limit: [64],
+    gradient_clip_norm: Float32,
+    sequence_length: [64],
+    top_k: [64]
+}
+
+type TrainingSample = {
+    tokens: [MAX_TOKENS_SIZE][32],
+    tokens_len: [64]
+}
+
+type ValidationMetrics = {
+    mse: Float32,
+    rmse: Float32,
+    mae: Float32,
+    r_squared: Float32,
+    mean_prediction: Float32,
+    mean_target: Float32,
+    confidence_interval_lower: Float32,
+    confidence_interval_upper: Float32,
+    num_samples: [64]
+}
+
+configInit : Config
+configInit = {
+    embedding_dim = DEFAULT_EMBEDDING_DIM,
+    rsf_layers = DEFAULT_RSF_LAYERS,
+    batch_size = DEFAULT_BATCH_SIZE,
+    num_epochs = DEFAULT_NUM_EPOCHS,
+    learning_rate = DEFAULT_LEARNING_RATE,
+    num_training_samples = DEFAULT_TRAINING_SAMPLES,
+    num_validation_samples = DEFAULT_VALIDATION_SAMPLES,
+    sample_limit = DEFAULT_SAMPLE_LIMIT,
+    gradient_clip_norm = DEFAULT_GRADIENT_CLIP_NORM,
+    sequence_length = DEFAULT_SEQUENCE_LENGTH,
+    top_k = DEFAULT_TOP_K
+}
+
+validateConfig : Config -> Bit
+validateConfig c =
+    (c.embedding_dim >= MIN_EMBEDDING_DIM /\ c.embedding_dim <= MAX_EMBEDDING_DIM) /\
+    (c.rsf_layers >= MIN_RSF_LAYERS /\ c.rsf_layers <= MAX_RSF_LAYERS) /\
+    (c.batch_size >= MIN_BATCH_SIZE /\ c.batch_size <= MAX_BATCH_SIZE) /\
+    (c.num_epochs <= MAX_NUM_EPOCHS) /\
+    (c.num_training_samples >= MIN_SAMPLES /\ c.num_training_samples <= MAX_SAMPLES) /\
+    (c.num_validation_samples <= MAX_SAMPLES) /\
+    (c.top_k > 0) /\
+    (fpIsPositive c.gradient_clip_norm)
+
+calculateTotalParams : (dim: [64], layers: [64]) -> [64]
+calculateTotalParams dim layers =
+    let dim_sq = dim * dim
+        weights_per_layer = dim_sq * 4
+        biases_per_layer = dim * 2
+        params_per_layer = weights_per_layer + biases_per_layer
+    in params_per_layer * layers
+
+mulU64 : [64] -> [64] -> [64]
+mulU64 a b = a * b
+
+addU64 : [64] -> [64] -> [64]
+addU64 a b = a + b
+
+subU64 : [64] -> [64] -> [64]
+subU64 a b = a - b
+
+divU64 : [64] -> [64] -> [64]
+divU64 a b = a / b
+
+modU64 : [64] -> [64] -> [64]
+modU64 a b = a % b
+
+minU64 : [64] -> [64] -> [64]
+minU64 a b = if a < b then a else b
+
+maxU64 : [64] -> [64] -> [64]
+maxU64 a b = if a > b then a else b
+
+clampU64 : [64] -> [64] -> [64] -> [64]
+clampU64 val lo hi = maxU64 lo (minU64 val hi)
+
+type PRNGState = [64]
+
+prngInit : [64] -> PRNGState
+prngInit seed = seed
+
+prngNext : PRNGState -> (PRNGState, [64])
+prngNext state =
+    let mult = 6364136223846793005 : [64]
+        incr = 1442695040888963407 : [64]
+        new_state = mult * state + incr
+    in (new_state, new_state)
+
+prngNextN : PRNGState -> [64] -> (PRNGState, [MAX_TOKENS_SIZE][64])
+prngNextN state n =
+    let helper s i arr = if i == n then (s, arr)
+                         else let (s1, v) = prngNext s
+                              in helper s1 (i + 1) (update arr i v)
+        initial_arr = zero : [MAX_TOKENS_SIZE][64]
+    in helper state 0 initial_arr
+
+floatAdd : Float32 -> Float32 -> Float32
+floatAdd a b = fpAdd rmNearestTiesToEven a b
+
+floatSub : Float32 -> Float32 -> Float32
+floatSub a b = fpSub rmNearestTiesToEven a b
+
+floatMul : Float32 -> Float32 -> Float32
+floatMul a b = fpMul rmNearestTiesToEven a b
+
+floatDiv : Float32 -> Float32 -> Float32
+floatDiv a b = fpDiv rmNearestTiesToEven a b
+
+floatAbs : Float32 -> Float32
+floatAbs f = fpAbs f
+
+floatNeg : Float32 -> Float32
+floatNeg f = fpNeg f
+
+floatIsNaN : Float32 -> Bit
+floatIsNaN f = fpIsNaN f
+
+floatIsInf : Float32 -> Bit
+floatIsInf f = fpIsInf f
+
+floatIsZero : Float32 -> Bit
+floatIsZero f = fpIsZero f
+
+floatSqrt : Float32 -> Float32
+floatSqrt f = fpSqrt rmNearestTiesToEven f
+
+floatExp : Float32 -> Float32
+floatExp f = fpExp rmNearestTiesToEven f
+
+floatLog : Float32 -> Float32
+floatLog f = fpLog rmNearestTiesToEven f
+
+floatPow : Float32 -> [64] -> Float32
+floatPow f e = if e == 0 then fpFromRational rmNearestTiesToEven (1 % 1) else floatMul f (floatPow f (e - 1))
+
+floatClamp : Float32 -> Float32 -> Float32 -> Float32
+floatClamp val lo hi =
+    let cmpLo = fpLessThan val lo
+        cmpHi = fpGreaterThan val hi
+    in if cmpLo then lo else if cmpHi then hi else val
+
+floatEq : Float32 -> Float32 -> Bit
+floatEq a b = fpIsEqual a b
+
+floatLt : Float32 -> Float32 -> Bit
+floatLt a b = fpLessThan a b
+
+floatGt : Float32 -> Float32 -> Bit
+floatGt a b = fpGreaterThan a b
+
+floatLe : Float32 -> Float32 -> Bit
+floatLe a b = fpLessThanOrEqual a b
+
+floatGe : Float32 -> Float32 -> Bit
+floatGe a b = fpGreaterThanOrEqual a b
+
+floatMax : Float32 -> Float32 -> Float32
+floatMax a b = if fpGreaterThan a b then a else b
+
+floatMin : Float32 -> Float32 -> Float32
+floatMin a b = if fpLessThan a b then a else b
+
+type Tensor2D = {
+    rows: [64],
+    cols: [64],
+    data: [MAX_TENSOR_SIZE]Float32
+}
+
+tensorInit : (rows: [64], cols: [64]) -> Tensor2D
+tensorInit rows cols = {
+    rows = rows,
+    cols = cols,
+    data = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+}
+
+tensorGet : Tensor2D -> [64] -> [64] -> Float32
+tensorGet t row col =
+    if (row < t.rows) /\ (col < t.cols) then
+        let idx = row * t.cols + col
+        in if idx < MAX_TENSOR_SIZE then t.data @ idx else fpFromRational rmNearestTiesToEven (0 % 1)
+    else fpFromRational rmNearestTiesToEven (0 % 1)
+
+tensorSet : Tensor2D -> [64] -> [64] -> Float32 -> Tensor2D
+tensorSet t row col val =
+    let idx = row * t.cols + col
+        newData = if idx < MAX_TENSOR_SIZE then update t.data idx val else t.data
+    in { rows = t.rows, cols = t.cols, data = newData }
+
+tensorZeros : (rows: [64], cols: [64]) -> Tensor2D
+tensorZeros rows cols =
+    { rows = rows, cols = cols, data = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]] }
+
+type RSFLayer = {
+    dim: [64],
+    s_weight: Tensor2D,
+    t_weight: Tensor2D,
+    s_bias: [MAX_TENSOR_SIZE]Float32,
+    t_bias: [MAX_TENSOR_SIZE]Float32
+}
+
+type RSF = {
+    num_layers: [64],
+    dim: [64],
+    layers: [MAX_RSF_LAYERS]RSFLayer
+}
+
+rsfLayerInit : [64] -> RSFLayer
+rsfLayerInit dim =
+    let s_weight = tensorZeros dim dim
+        t_weight = tensorZeros dim dim
+        s_bias = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+        t_bias = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+    in { dim = dim, s_weight = s_weight, t_weight = t_weight, s_bias = s_bias, t_bias = t_bias }
+
+rsfInit : (num_layers: [64], dim: [64]) -> RSF
+rsfInit num_layers dim =
+    let layers = [rsfLayerInit dim | _ <- [1..MAX_RSF_LAYERS]]
+    in { num_layers = num_layers, dim = dim, layers = layers }
+
+rsfForwardLayer : RSFLayer -> [MAX_TENSOR_SIZE]Float32 -> [MAX_TENSOR_SIZE]Float32
+rsfForwardLayer layer input =
+    let dim = layer.dim
+        s_out = [ if d < dim then foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_TENSOR_SIZE} [ floatMul (tensorGet layer.s_weight d i) (input @ i) | i <- [0..MAX_TENSOR_SIZE-1] ]) `floatAdd` (layer.s_bias @ d) else fpFromRational rmNearestTiesToEven (0 % 1)
+                | d <- [0..MAX_TENSOR_SIZE-1] ]
+        t_out = [ if d < dim then foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_TENSOR_SIZE} [ floatMul (tensorGet layer.t_weight d i) (input @ i) | i <- [0..MAX_TENSOR_SIZE-1] ]) `floatAdd` (layer.t_bias @ d) else fpFromRational rmNearestTiesToEven (0 % 1)
+                | d <- [0..MAX_TENSOR_SIZE-1] ]
+        combined = [ floatAdd (s_out @ i) (t_out @ i) | i <- [0..MAX_TENSOR_SIZE-1] ]
+    in combined
+
+rsfForward : RSF -> [MAX_TENSOR_SIZE]Float32 -> [MAX_TENSOR_SIZE]Float32
+rsfForward rsf input =
+    let helper i acc = if i == rsf.num_layers then acc else helper (i + 1) (rsfForwardLayer (rsf.layers @ i) acc)
+    in helper 0 input
+
+type Projection = {
+    hidden_dim: [64],
+    vocab_size: [64],
+    weights: Tensor2D,
+    bias: [MAX_TENSOR_SIZE]Float32
+}
+
+projectionInit : (hidden_dim: [64], vocab_size: [64]) -> Projection
+projectionInit hidden_dim vocab_size =
+    let weights = tensorZeros hidden_dim vocab_size
+        bias = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+    in { hidden_dim = hidden_dim, vocab_size = vocab_size, weights = weights, bias = bias }
+
+projectionForward : Projection -> [MAX_TENSOR_SIZE]Float32 -> [64] -> [MAX_TENSOR_SIZE]Float32
+projectionForward proj hidden hidden_len =
+    let vocab_sz = proj.vocab_size
+        h_dim = minU64 hidden_len proj.hidden_dim
+    in [ if v < vocab_sz
+         then (proj.bias @ v) `floatAdd` foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_TENSOR_SIZE} [ floatMul (hidden @ h) (tensorGet proj.weights h v) | h <- [0..MAX_TENSOR_SIZE-1] ])
+         else fpFromRational rmNearestTiesToEven (0 % 1)
+       | v <- [0..MAX_TENSOR_SIZE-1] ]
+
+normalizeProbs : [MAX_TENSOR_SIZE]Float32 -> [64] -> [MAX_TENSOR_SIZE]Float32
+normalizeProbs logits len =
+    let max_val = foldl floatMax (logits @ 0) logits
+        exp_vals = [ if i < len then floatExp (floatSub (logits @ i) max_val) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+        sum_exp = foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) exp_vals
+    in if floatEq sum_exp (fpFromRational rmNearestTiesToEven (0 % 1))
+       then [ if i < len then floatDiv (fpFromRational rmNearestTiesToEven (1 % 1)) (fpFromInteger rmNearestTiesToEven len) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+       else [ if i < len then floatDiv (exp_vals @ i) sum_exp else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+
+sampleTopK : [MAX_TENSOR_SIZE]Float32 -> [64] -> [64] -> [64] -> [64]
+sampleTopK logits len k random =
+    let sorted = sortBy (\a b -> floatGt (logits @ a) (logits @ b)) [0..MAX_TENSOR_SIZE-1]
+        top_k_indices = take`{MAX_TENSOR_SIZE} sorted
+        top_logits = [ logits @ (top_k_indices @ i) | i <- [0..MAX_TENSOR_SIZE-1] ]
+        probs = normalizeProbs top_logits k
+        cumulative = scanl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) probs
+        random_f = fpFromInteger rmNearestTiesToEven random
+        selected = findFirst (\i -> floatLt random_f (cumulative @ i)) [0..MAX_TENSOR_SIZE-1]
+    in top_k_indices @ selected
+
+crossEntropyLoss : [MAX_TENSOR_SIZE]Float32 -> [64] -> Float32
+crossEntropyLoss probs target =
+    let target_prob = if target < MAX_TENSOR_SIZE then probs @ target else fpFromRational rmNearestTiesToEven (0 % 1)
+        log_prob = floatLog target_prob
+    in floatNeg log_prob
+
+createEmbedding : [MAX_TOKENS_SIZE][32] -> [64] -> [64] -> [64] -> [MAX_TENSOR_SIZE]Float32
+createEmbedding tokens tokens_len vocab_size dim =
+    let vocab_f = fpFromInteger rmNearestTiesToEven vocab_size
+        max_tokens = minU64 tokens_len dim
+        normalized = [ if i < max_tokens
+                       then floatClamp (floatDiv (fpFromInteger rmNearestTiesToEven (tokens @ i)) vocab_f) (fpFromRational rmNearestTiesToEven (0 % 1)) (fpFromRational rmNearestTiesToEven (1 % 1))
+                       else fpFromRational rmNearestTiesToEven (0 % 1)
+                     | i <- [0..MAX_TENSOR_SIZE-1] ]
+        embedded = [ if i < dim then normalized @ i
+                     else if i < dim * 2 then floatMul (normalized @ (i - dim)) (fpFromRational rmNearestTiesToEven (5 % 10))
+                     else fpFromRational rmNearestTiesToEven (0 % 1)
+                   | i <- [0..MAX_TENSOR_SIZE-1] ]
+    in embedded
+
+validateModel : RSF -> Projection -> Config -> [64] -> ValidationMetrics
+validateModel rsf proj config num_samples =
+    let dim = config.embedding_dim
+        tensor_dim = dim * 2
+        predictions = [ if i < num_samples then
+                          let embedding = createEmbedding (zero : [MAX_TOKENS_SIZE][32]) 0 0 dim
+                              forward = rsfForward rsf embedding
+                              sum_val = foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) forward
+                          in floatDiv sum_val (fpFromInteger rmNearestTiesToEven tensor_dim)
+                        else fpFromRational rmNearestTiesToEven (0 % 1)
+                      | i <- [0..MAX_SAMPLES-1] ]
+        targets = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_SAMPLES-1]]
+        mean_pred = floatDiv (foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) predictions) (fpFromInteger rmNearestTiesToEven num_samples)
+        mean_target = floatDiv (foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) targets) (fpFromInteger rmNearestTiesToEven num_samples)
+        mse_num = foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_SAMPLES} [ if i < num_samples then floatMul (floatSub (predictions @ i) (targets @ i)) (floatSub (predictions @ i) (targets @ i)) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_SAMPLES-1] ])
+        mse = floatDiv mse_num (fpFromInteger rmNearestTiesToEven num_samples)
+        mae = floatDiv (foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_SAMPLES} [ if i < num_samples then floatAbs (floatSub (predictions @ i) (targets @ i)) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_SAMPLES-1] ])) (fpFromInteger rmNearestTiesToEven num_samples)
+        rmse = floatSqrt mse
+        ss_res = mse_num
+        ss_tot = foldl floatAdd (fpFromRational rmNearestTiesToEven (0 % 1)) (take`{MAX_SAMPLES} [ if i < num_samples then floatMul (floatSub (targets @ i) mean_target) (floatSub (targets @ i) mean_target) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_SAMPLES-1] ])
+        r_squared = if floatGt ss_tot (fpFromRational rmNearestTiesToEven (0 % 1)) then floatSub (fpFromRational rmNearestTiesToEven (1 % 1)) (floatDiv ss_res ss_tot) else fpFromRational rmNearestTiesToEven (0 % 1)
+        std_err = floatDiv rmse (floatSqrt (fpFromInteger rmNearestTiesToEven num_samples))
+        margin = floatMul (fpFromRational rmNearestTiesToEven (196 % 100)) std_err
+    in {
+        mse = mse,
+        rmse = rmse,
+        mae = mae,
+        r_squared = r_squared,
+        mean_prediction = mean_pred,
+        mean_target = mean_target,
+        confidence_interval_lower = floatSub mse margin,
+        confidence_interval_upper = floatAdd mse margin,
+        num_samples = num_samples
+    }
+
+gradientClip : [MAX_TENSOR_SIZE]Float32 -> [64] -> Float32 -> [MAX_TENSOR_SIZE]Float32
+gradientClip grads len norm =
+    let sq_sum = foldl (\acc g -> floatAdd acc (floatMul g g)) (fpFromRational rmNearestTiesToEven (0 % 1)) grads
+    in if floatGt sq_sum (floatMul norm norm)
+       then let scale = floatDiv norm (floatSqrt sq_sum)
+            in [ if i < len then floatMul (grads @ i) scale else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+       else grads
+
+type SFD = {
+    param_size: [64],
+    m: [MAX_TENSOR_SIZE]Float32,
+    v: [MAX_TENSOR_SIZE]Float32,
+    t: [64]
+}
+
+sfdInit : [64] -> SFD
+sfdInit param_size =
+    let m = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+        v = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+    in { param_size = param_size, m = m, v = v, t = 1 }
+
+sfdUpdate : SFD -> [MAX_TENSOR_SIZE]Float32 -> [MAX_TENSOR_SIZE]Float32 -> Float32 -> (SFD, [MAX_TENSOR_SIZE]Float32)
+sfdUpdate sfd grads params lr =
+    let beta1 = fpFromRational rmNearestTiesToEven (9 % 10)
+        beta2 = fpFromRational rmNearestTiesToEven (999 % 1000)
+        epsilon = fpFromRational rmNearestTiesToEven (1 % 100000000)
+        t_new = sfd.t + 1
+        m_new = [ if i < sfd.param_size
+                  then floatAdd (floatMul beta1 (sfd.m @ i)) (floatMul (floatSub (fpFromRational rmNearestTiesToEven (1 % 1)) beta1) (grads @ i))
+                  else fpFromRational rmNearestTiesToEven (0 % 1)
+                | i <- [0..MAX_TENSOR_SIZE-1] ]
+        v_new = [ if i < sfd.param_size
+                  then floatAdd (floatMul beta2 (sfd.v @ i)) (floatMul (floatSub (fpFromRational rmNearestTiesToEven (1 % 1)) beta2) (floatMul (grads @ i) (grads @ i)))
+                  else fpFromRational rmNearestTiesToEven (0 % 1)
+                | i <- [0..MAX_TENSOR_SIZE-1] ]
+        m_hat = [ if i < sfd.param_size then floatDiv (m_new @ i) (floatSub (fpFromRational rmNearestTiesToEven (1 % 1)) (floatPow beta1 sfd.t)) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+        v_hat = [ if i < sfd.param_size then floatDiv (v_new @ i) (floatSub (fpFromRational rmNearestTiesToEven (1 % 1)) (floatPow beta2 sfd.t)) else fpFromRational rmNearestTiesToEven (0 % 1) | i <- [0..MAX_TENSOR_SIZE-1] ]
+        params_new = [ if i < sfd.param_size
+                       then floatSub (params @ i) (floatDiv (floatMul lr (m_hat @ i)) (floatAdd (floatSqrt (v_hat @ i)) epsilon))
+                       else fpFromRational rmNearestTiesToEven (0 % 1)
+                     | i <- [0..MAX_TENSOR_SIZE-1] ]
+        sfd_new = { param_size = sfd.param_size, m = m_new, v = v_new, t = t_new }
+    in (sfd_new, params_new)
+
+type SSINode = { token: [32], children: [MAX_NODES_SIZE][64], count: [64] }
+
+type SSI = {
+    nodes: [MAX_NODES_SIZE]SSINode,
+    nodes_len: [64]
+}
+
+ssiInit : SSI
+ssiInit = { nodes = zero : [MAX_NODES_SIZE]SSINode, nodes_len = 0 }
+
+ssiAddSequence : SSI -> [MAX_TOKENS_SIZE][32] -> [64] -> [64] -> Bit -> SSI
+ssiAddSequence ssi tokens tokens_len position is_anchor =
+    let node_weight = if is_anchor then 2 else 1
+        addToken ssi_acc token =
+            let match_idx = findFirst (\i -> (ssi_acc.nodes @ i).token == token) [0..MAX_NODES_SIZE-1]
+            in if match_idx < ssi_acc.nodes_len
+               then ssi_acc where nodes = update ssi_acc.nodes match_idx ((ssi_acc.nodes @ match_idx) where count = (ssi_acc.nodes @ match_idx).count + node_weight)
+               else if ssi_acc.nodes_len < MAX_NODES_SIZE
+                    then { nodes = update ssi_acc.nodes ssi_acc.nodes_len { token = token, children = zero : [MAX_NODES_SIZE][64], count = node_weight }, nodes_len = ssi_acc.nodes_len + 1 }
+                    else ssi_acc
+        helper ssi_acc i = if i == tokens_len then ssi_acc else helper (addToken ssi_acc (tokens @ i)) (i + 1)
+    in helper ssi 0
+
+type SSIResult = { position: [64], score: Float32 }
+
+ssiRetrieveTopK : SSI -> [MAX_TOKENS_SIZE][32] -> [64] -> [64] -> [MAX_NODES_SIZE]SSIResult
+ssiRetrieveTopK ssi query query_len k =
+    let scores = [ if j < ssi.nodes_len
+                   then let match_count = foldl (+) 0 (take`{MAX_TOKENS_SIZE} [ if (ssi.nodes @ j).token == (query @ i) then 1 else 0 | i <- [0..MAX_TOKENS_SIZE-1] ])
+                            total = (ssi.nodes @ j).count
+                            score = floatDiv (fpFromInteger rmNearestTiesToEven match_count) (fpFromInteger rmNearestTiesToEven total)
+                        in { position = j, score = score }
+                   else { position = j, score = fpFromRational rmNearestTiesToEven (0 % 1) }
+                 | j <- [0..MAX_NODES_SIZE-1] ]
+        sorted = sortBy (\a b -> floatGt a.score b.score) scores
+    in sorted
+
+type MGT = {
+    vocab: [MAX_TOKENS_SIZE][MAX_TOKENS_SIZE][8],
+    vocab_len: [64],
+    anchors: [MAX_TOKENS_SIZE][32]
+}
+
+mgtInit : [MAX_TOKENS_SIZE][MAX_TOKENS_SIZE][8] -> [64] -> [MAX_TOKENS_SIZE][MAX_TOKENS_SIZE][8] -> [64] -> MGT
+mgtInit vocab vocab_len anchors anchors_len =
+    { vocab = vocab, vocab_len = vocab_len, anchors = zero : [MAX_TOKENS_SIZE][32] }
+
+mgtVocabSize : MGT -> [64]
+mgtVocabSize mgt = mgt.vocab_len
+
+mgtEncode : MGT -> [MAX_TOKENS_SIZE][8] -> [64] -> [MAX_TOKENS_SIZE][32]
+mgtEncode mgt text text_len = zero : [MAX_TOKENS_SIZE][32]
+
+mgtDecode : MGT -> [MAX_TOKENS_SIZE][32] -> [64] -> [MAX_TOKENS_SIZE][MAX_TOKENS_SIZE][8]
+mgtDecode mgt tokens tokens_len =
+    [ if i < tokens_len /\ (tokens @ i) != 0 then mgt.vocab @ (tokens @ i) else zero : [MAX_TOKENS_SIZE][8] | i <- [0..MAX_TOKENS_SIZE-1] ]
+
+type Ranker = {
+    ngram_size: [64],
+    lsh_tables: [64],
+    seed: [64]
+}
+
+rankerInit : [64] -> [64] -> [64] -> Ranker
+rankerInit ngram_size lsh_tables seed =
+    { ngram_size = ngram_size, lsh_tables = lsh_tables, seed = seed }
+
+rankerScoreSequence : Ranker -> [MAX_TOKENS_SIZE][32] -> [64] -> SSI -> Float32
+rankerScoreSequence ranker tokens tokens_len ssi = fpFromRational rmNearestTiesToEven (0 % 1)
+
+rankerRankCandidates : Ranker -> [MAX_NODES_SIZE]SSIResult -> [64] -> [MAX_TOKENS_SIZE][32] -> [64] -> SSI -> [MAX_NODES_SIZE]SSIResult
+rankerRankCandidates ranker candidates cand_len query query_len ssi = candidates
+
+generateText : RSF -> Projection -> MGT -> [MAX_TOKENS_SIZE][32] -> [64] -> [64] -> Config -> [64] -> [MAX_TOKENS_SIZE][32]
+generateText rsf proj mgt prompt_tokens prompt_len max_len config prng_state = prompt_tokens
+
+saveRSF : RSF -> [MAX_TENSOR_SIZE][8]
+saveRSF rsf = zero : [MAX_TENSOR_SIZE][8]
+
+saveTensor : Tensor2D -> [MAX_TENSOR_SIZE][8]
+saveTensor t = zero : [MAX_TENSOR_SIZE][8]
+
+saveFloat32Array : [MAX_TENSOR_SIZE]Float32 -> [MAX_TENSOR_SIZE][8]
+saveFloat32Array arr = zero : [MAX_TENSOR_SIZE][8]
+
+toByteLit : [64] -> [8][8]
+toByteLit val = [
+    val @@ [7:0],
+    val @@ [15:8],
+    val @@ [23:16],
+    val @@ [31:24],
+    val @@ [39:32],
+    val @@ [47:40],
+    val @@ [55:48],
+    val @@ [63:56]
+]
+
+toByteLit32 : [32] -> [4][8]
+toByteLit32 val = [
+    val @@ [7:0],
+    val @@ [15:8],
+    val @@ [23:16],
+    val @@ [31:24]
+]
+
+toByteLitFloat32 : Float32 -> [4][8]
+toByteLitFloat32 val = [zero, zero, zero, zero]
+
+loadRSF : [MAX_TENSOR_SIZE][8] -> RSF
+loadRSF bytes = rsfInit 0 0
+
+fromByteLit : [8][8] -> [64]
+fromByteLit bytes =
+    (bytes @ 0) # (bytes @ 1) # (bytes @ 2) # (bytes @ 3) #
+    (bytes @ 4) # (bytes @ 5) # (bytes @ 6) # (bytes @ 7)
+
+fromByteLit32 : [4][8] -> [32]
+fromByteLit32 bytes =
+    (bytes @ 0) # (bytes @ 1) # (bytes @ 2) # (bytes @ 3)
+
+terminalColorsDetect : Bit -> { enabled: Bit, reset: [4][8], bold: [4][8], cyan: [5][8], green: [5][8], yellow: [5][8], red: [5][8] }
+terminalColorsDetect tty_supported =
+    if tty_supported
+    then { enabled = True,
+           reset = [0x1b, 0x5b, 0x30, 0x6d],
+           bold = [0x1b, 0x5b, 0x31, 0x6d],
+           cyan = [0x1b, 0x5b, 0x33, 0x36, 0x6d],
+           green = [0x1b, 0x5b, 0x33, 0x32, 0x6d],
+           yellow = [0x1b, 0x5b, 0x33, 0x33, 0x6d],
+           red = [0x1b, 0x5b, 0x33, 0x31, 0x6d] }
+    else { enabled = False, reset = zero, bold = zero, cyan = zero, green = zero, yellow = zero, red = zero }
+
+printValidationMetrics : ValidationMetrics -> [MAX_TENSOR_SIZE][8]
+printValidationMetrics m = zero : [MAX_TENSOR_SIZE][8]
+
+runTrainingLoop : RSF -> Projection -> SFD -> [MAX_SAMPLES]TrainingSample -> [64] -> Config -> (RSF, Projection, SFD)
+runTrainingLoop rsf proj sfd samples samples_len config = (rsf, proj, sfd)
+
+runKgruTest : Config -> Bit
+runKgruTest config =
+    let dim = TEST_DIM
+        layers = TEST_LAYERS
+        rsf = rsfInit layers dim
+        input = [fpFromRational rmNearestTiesToEven (0 % 1) | _ <- [0..MAX_TENSOR_SIZE-1]]
+        output = rsfForward rsf input
+        valid_output = floatEq (output @ 0) (fpFromRational rmNearestTiesToEven (0 % 1))
+    in valid_output
+
+main : Config -> [64] -> Bit
+main config prng_seed =
+    let test_result = runKgruTest config
+        config_valid = validateConfig config
+    in test_result /\ config_valid
